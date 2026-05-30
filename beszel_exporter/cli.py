@@ -58,6 +58,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Beszel password, overrides BESZEL_PASSWORD and .env",
     )
     parser.add_argument("--per-page", type=int, default=200, help="PocketBase page size")
+    parser.add_argument(
+        "--ca-file",
+        type=Path,
+        help="Path to a CA certificate bundle for private or self-signed HTTPS certificates",
+    )
+    parser.add_argument(
+        "--insecure-skip-tls-verify",
+        action="store_true",
+        help="Disable HTTPS certificate verification. Use only for trusted internal networks.",
+    )
     return parser
 
 
@@ -65,6 +75,13 @@ def run(args: argparse.Namespace) -> int:
     dotenv = load_dotenv()
     email = args.email or os.getenv("BESZEL_EMAIL") or dotenv.get("BESZEL_EMAIL")
     password = args.password or os.getenv("BESZEL_PASSWORD") or dotenv.get("BESZEL_PASSWORD")
+    ca_file_value = args.ca_file or os.getenv("BESZEL_CA_FILE") or dotenv.get("BESZEL_CA_FILE")
+    ca_file = Path(ca_file_value) if ca_file_value else None
+    insecure_tls = (
+        args.insecure_skip_tls_verify
+        or is_truthy(os.getenv("BESZEL_INSECURE_SKIP_TLS_VERIFY"))
+        or is_truthy(dotenv.get("BESZEL_INSECURE_SKIP_TLS_VERIFY"))
+    )
 
     if not email:
         raise SystemExit("Missing Beszel email. Set BESZEL_EMAIL in .env/env or pass --email.")
@@ -74,8 +91,12 @@ def run(args: argparse.Namespace) -> int:
         raise SystemExit("--start must be before or equal to --end.")
     if args.per_page < 1 or args.per_page > 500:
         raise SystemExit("--per-page must be between 1 and 500.")
+    if ca_file is not None and insecure_tls:
+        raise SystemExit("Use either --ca-file or --insecure-skip-tls-verify, not both.")
+    if ca_file is not None and not ca_file.exists():
+        raise SystemExit(f"CA file not found: {ca_file}")
 
-    client = PocketBaseClient(args.hub_url)
+    client = PocketBaseClient(args.hub_url, verify_tls=not insecure_tls, ca_file=ca_file)
     client.authenticate(email, password)
 
     start_filter = pocketbase_datetime(args.start)
@@ -110,3 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     except PocketBaseError as exc:
         print(f"Beszel API error: {exc}", file=sys.stderr)
         return 1
+
+
+def is_truthy(value: str | None) -> bool:
+    return value is not None and value.strip().lower() in {"1", "true", "yes", "on"}

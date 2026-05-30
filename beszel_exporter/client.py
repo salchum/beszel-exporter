@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import ssl
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -17,9 +19,12 @@ class PocketBaseClient:
     hub_url: str
     token: str | None = None
     timeout: int = 30
+    verify_tls: bool = True
+    ca_file: Path | None = None
 
     def __post_init__(self) -> None:
         self.hub_url = self.hub_url.rstrip("/")
+        self._ssl_context = self._build_ssl_context()
 
     def authenticate(self, email: str, password: str) -> None:
         response = self._request_json(
@@ -90,7 +95,7 @@ class PocketBaseClient:
             method=method,
         )
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            with urlopen(request, timeout=self.timeout, context=self._ssl_context) as response:
                 payload = response.read().decode("utf-8")
         except HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
@@ -105,6 +110,15 @@ class PocketBaseClient:
         if not isinstance(decoded, dict):
             raise PocketBaseError("response JSON was not an object")
         return decoded
+
+    def _build_ssl_context(self) -> ssl.SSLContext | None:
+        if self.hub_url.startswith("http://"):
+            return None
+        if not self.verify_tls:
+            return ssl._create_unverified_context()
+        if self.ca_file is not None:
+            return ssl.create_default_context(cafile=str(self.ca_file))
+        return None
 
 
 def escape_filter_value(value: str) -> str:

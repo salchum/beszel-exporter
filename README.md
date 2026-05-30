@@ -16,6 +16,12 @@ Then edit `.env`:
 ```env
 BESZEL_EMAIL=you@example.com
 BESZEL_PASSWORD=your-password
+
+# Optional, for private/self-signed HTTPS certificates:
+# BESZEL_CA_FILE=/path/to/ca.pem
+
+# Optional, only for trusted internal networks:
+# BESZEL_INSECURE_SKIP_TLS_VERIFY=false
 ```
 
 The `.env` file is ignored by Git because it contains secrets. The exporter reads
@@ -32,6 +38,46 @@ This means you can temporarily override `.env` without editing the file:
 ```bash
 BESZEL_EMAIL=other@example.com BESZEL_PASSWORD=other-password python3 -m beszel_exporter ...
 ```
+
+### HTTPS Certificates
+
+If your Beszel hub uses HTTPS with a private or self-signed certificate, Python may
+show:
+
+```text
+[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed
+```
+
+Best option: point the exporter to the CA certificate that signed your Beszel
+certificate:
+
+```bash
+python3 -m beszel_exporter \
+  --hub-url https://beszel.example.com \
+  --ca-file /path/to/ca.pem \
+  --system-id SYSTEM_ID \
+  --start "2026-01-01 08:00" \
+  --end "2026-01-01 11:00" \
+  --format csv \
+  --output bandwidth_report.csv
+```
+
+You can also set `BESZEL_CA_FILE=/path/to/ca.pem` in `.env`.
+
+For a trusted internal network only, you can skip TLS verification:
+
+```bash
+python3 -m beszel_exporter \
+  --hub-url https://beszel.example.com \
+  --insecure-skip-tls-verify \
+  --system-id SYSTEM_ID \
+  --start "2026-01-01 08:00" \
+  --end "2026-01-01 11:00" \
+  --format csv \
+  --output bandwidth_report.csv
+```
+
+Or set `BESZEL_INSECURE_SKIP_TLS_VERIFY=true` in `.env`.
 
 Run the exporter:
 
