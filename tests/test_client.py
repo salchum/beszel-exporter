@@ -45,12 +45,14 @@ class ClientTests(unittest.TestCase):
                 "2026-01-01 01:00:00",
                 "2026-01-01 04:00:00",
                 per_page=1,
+                record_type="1m",
             )
 
         self.assertEqual(records, [{"id": "one"}, {"id": "two"}])
         self.assertEqual(requests[0].full_url, "http://beszel.example/api/collections/users/auth-with-password")
         self.assertIn("/api/collections/system_stats/records?", requests[1].full_url)
         self.assertIn("sort=created", requests[1].full_url)
+        self.assertIn("type+%3D+%221m%22", requests[1].full_url)
 
     def test_escape_filter_value(self) -> None:
         self.assertEqual(escape_filter_value('sys"\\1'), 'sys\\"\\\\1')

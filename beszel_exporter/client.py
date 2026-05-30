@@ -38,14 +38,24 @@ class PocketBaseClient:
             raise PocketBaseError("authentication response did not include a token")
         self.token = token
 
-    def fetch_system_stats(self, system_id: str, start: str, end: str, per_page: int = 200) -> list[dict[str, Any]]:
+    def fetch_system_stats(
+        self,
+        system_id: str,
+        start: str,
+        end: str,
+        per_page: int = 200,
+        record_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         all_records: list[dict[str, Any]] = []
         page = 1
-        filter_expr = (
-            f'system = "{escape_filter_value(system_id)}" && '
-            f'created >= "{escape_filter_value(start)}" && '
-            f'created <= "{escape_filter_value(end)}"'
-        )
+        filters = [
+            f'system = "{escape_filter_value(system_id)}"',
+            f'created >= "{escape_filter_value(start)}"',
+            f'created <= "{escape_filter_value(end)}"',
+        ]
+        if record_type is not None:
+            filters.append(f'type = "{escape_filter_value(record_type)}"')
+        filter_expr = " && ".join(filters)
 
         while True:
             query = urlencode(

@@ -8,10 +8,10 @@ from typing import Any
 from .normalize import FIELD_NAMES
 
 
-def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+def write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=FIELD_NAMES, extrasaction="ignore")
+        writer = csv.DictWriter(file, fieldnames=fieldnames or FIELD_NAMES, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
